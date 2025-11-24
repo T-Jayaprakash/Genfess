@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ta">
+
+<head>
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.84.0"
+      }
+    }
+    </script>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Lastbench | Ena Mapla Pesalamaa</title>
+
+  <!-- Performance Optimization: Preconnect to external domains -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://koxukijufywvgnxqtuzz.supabase.co">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Satisfy&display=swap"
+    rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none;
+      /* Instagram-like smooth scrolling */
+      scroll-behavior: smooth;
+    }
+
+    /* Hardware acceleration for smooth animations */
+    * {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Smooth transitions for all interactive elements */
+    button,
+    a,
+    input,
+    textarea {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      /* IE and Edge */
+      scrollbar-width: none;
+      /* Firefox */
+    }
+
+    /* Performance: Browser Native Virtualization */
+    .render-lazy {
+      content-visibility: auto;
+      contain-intrinsic-size: 1px 500px;
+      /* Approximate height of a post */
+    }
+
+    /* Optimize rendering performance */
+    .will-change-transform {
+      will-change: transform;
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+    }
+
+    /* Reduce motion for accessibility */
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'background': '#ffffff',
+            'card-bg': '#ffffff',
+            'primary-text': '#000000',
+            'secondary-text': '#8e8e8e',
+            'accent': {
+              'primary': '#0095f6', // Instagram Blue
+              'secondary': '#00376b',
+            },
+            'border-color': '#dbdbdb',
+            'success': '#22c55e',
+            'dark': {
+              'background': '#000000',
+              'card-bg': '#000000',
+              'primary-text': '#ffffff',
+              'secondary-text': '#a8a8a8',
+              'border-color': '#363636',
+            }
+          },
+          fontFamily: {
+            'logo': ['"Satisfy"', 'cursive'],
+          },
+          transitionTimingFunction: {
+            'ios': 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+            'bounce-custom': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          },
+          keyframes: {
+            'fade-in': {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            'page-enter': {
+              '0%': { opacity: '0', transform: 'translateY(10px) scale(0.98)' },
+              '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+            },
+            'slide-up-fade': {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            'slide-in-right': {
+              '0%': { transform: 'translateX(100%)' },
+              '100%': { transform: 'translateX(0)' },
+            },
+            'slide-in-up': {
+              '0%': { transform: 'translateY(100%)' },
+              '100%': { transform: 'translateY(0)' },
+            },
+            'slide-in-bottom-fade': {
+              '0%': {
+                opacity: '0',
+                transform: 'translateY(20px)'
+              },
+              '100%': {
+                opacity: '1',
+                transform: 'translateY(0)'
+              },
+            },
+            'heart-pop': {
+              '0%': { transform: 'scale(0)', opacity: '0' },
+              '30%': { transform: 'scale(1.4) rotate(10deg)', opacity: '1' },
+              '50%': { transform: 'scale(1.1) rotate(-8deg)', opacity: '1' },
+              '100%': { transform: 'scale(1.2) translateY(-90px) rotate(5deg)', opacity: '0' },
+            },
+            'tag-pop': {
+              '0%': { transform: 'scale(1)' },
+              '50%': { transform: 'scale(1.1) rotate(-5deg)' },
+              '100%': { transform: 'scale(1) rotate(0deg)' },
+            },
+            'shimmer': {
+              '0%': { backgroundPosition: '200% 0' },
+              '100%': { backgroundPosition: '-200% 0' }
+            },
+            'splash-exit': {
+              '0%': { opacity: '1', transform: 'scale(1)' },
+              '100%': { opacity: '0', transform: 'scale(1.2)' }
+            },
+            'aurora': {
+              '0%': { backgroundPosition: '50% 50%' },
+              '100%': { backgroundPosition: '350% 50%' }
+            },
+            'text-blur-reveal': {
+              '0%': { filter: 'blur(10px)', opacity: '0' },
+              '100%': { filter: 'blur(0)', opacity: '1' }
+            },
+            'slide-down': {
+              '0%': { transform: 'translateY(-100%)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' }
+            },
+            'scale-in': {
+              '0%': { transform: 'scale(0)', opacity: '0' },
+              '50%': { transform: 'scale(1.2)' },
+              '100%': { transform: 'scale(1)', opacity: '1' }
+            },
+            'shake': {
+              '0%, 100%': { transform: 'translateX(0)' },
+              '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-2px)' },
+              '20%, 40%, 60%, 80%': { transform: 'translateX(2px)' }
+            },
+            'ping-once': {
+              '0%': { transform: 'scale(1)', opacity: '0.5' },
+              '100%': { transform: 'scale(2)', opacity: '0' }
+            },
+            'subtle-bounce': {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-2px)' }
+            }
+          },
+          animation: {
+            'fade-in': 'fade-in 0.5s ease-out',
+            'page-enter': 'page-enter 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            'slide-up-fade': 'slide-up-fade 0.6s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            'slide-in-right': 'slide-in-right 0.4s ease-out',
+            'slide-in-up': 'slide-in-up 0.4s ease-out',
+            'slide-in-bottom-fade': 'slide-in-bottom-fade 0.4s ease-out',
+            'heart-pop': 'heart-pop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+            'tag-pop': 'tag-pop 0.3s ease-out',
+            'shimmer': 'shimmer 2s linear infinite',
+            'splash-exit': 'splash-exit 0.5s ease-in forwards',
+            'aurora': 'aurora 15s linear infinite',
+            'text-blur-reveal': 'text-blur-reveal 1.5s ease-out forwards',
+            'slide-down': 'slide-down 0.3s ease-out',
+            'scale-in': 'scale-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            'shake': 'shake 0.5s ease-in-out',
+            'ping-once': 'ping-once 0.6s ease-out',
+            'subtle-bounce': 'subtle-bounce 0.6s ease-in-out'
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body
+  class="bg-background dark:bg-dark-background text-primary-text dark:text-dark-primary-text no-scrollbar select-none">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>

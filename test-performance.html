@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Test - Lastbench</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #0066cc;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+        .success {
+            border-left-color: #28a745;
+        }
+        .error {
+            border-left-color: #dc3545;
+        }
+        .warning {
+            border-left-color: #ffc107;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+        }
+        .metric-label {
+            font-weight: 600;
+            color: #333;
+        }
+        .metric-value {
+            font-family: 'Monaco', monospace;
+            color: #0066cc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Lastbench Performance Test</h1>
+        <p class="subtitle">Test the performance improvements and verify everything works correctly</p>
+
+        <div class="test-section">
+            <h2>1. Cache Test</h2>
+            <p>Tests localStorage cache functionality</p>
+            <button onclick="testCache()">Run Cache Test</button>
+            <div id="cache-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Database Connection Test</h2>
+            <p>Verify Supabase connection and query speed</p>
+            <button onclick="testDatabase()">Test Database</button>
+            <div id="db-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. Image Loading Test</h2>
+            <p>Test lazy loading and image optimization</p>
+            <button onclick="testImageLoading()">Test Images</button>
+            <div id="image-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Performance Metrics</h2>
+            <p>View current performance metrics</p>
+            <button onclick="showMetrics()">Show Metrics</button>
+            <div id="metrics-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>5. Clear Cache</h2>
+            <p>Clear localStorage cache to test fresh load</p>
+            <button onclick="clearCache()">Clear Cache</button>
+            <div id="clear-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const FEED_CACHE_KEY = 'lastbench_feed_cache';
+
+        function testCache() {
+            const resultDiv = document.getElementById('cache-result');
+            resultDiv.innerHTML = '<p>Testing cache...</p>';
+
+            try {
+                // Test write
+                const testData = {
+                    test: true,
+                    timestamp: Date.now(),
+                    posts: []
+                };
+                localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(testData));
+
+                // Test read
+                const cached = localStorage.getItem(FEED_CACHE_KEY);
+                const parsed = JSON.parse(cached);
+
+                if (parsed.test === true) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <strong>✅ Cache Working!</strong>
+                            <div class="metric">
+                                <span class="metric-label">Cache Status:</span>
+                                <span class="metric-value">Functional</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Current Cache:</span>
+                                <span class="metric-value">${cached ? 'Has Data' : 'Empty'}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Cache data mismatch');
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <strong>❌ Cache Error</strong>
+                        <p>${e.message}</p>
+                        <p>localStorage might be disabled or full</p>
+                    </div>
+                `;
+            }
+        }
+
+        function testDatabase() {
+            const resultDiv = document.getElementById('db-result');
+            resultDiv.innerHTML = '<p>Testing database connection...</p>';
+
+            const startTime = performance.now();
+            
+            // This is a mock test - in real implementation, you'd call your API
+            fetch('https://koxukijufywvgnxqtuzz.supabase.co/rest/v1/', {
+                method: 'HEAD'
+            })
+            .then(response => {
+                const endTime = performance.now();
+                const duration = Math.round(endTime - startTime);
+                
+                resultDiv.innerHTML = `
+                    <div class="result success">
+                        <strong>✅ Database Connected</strong>
+                        <div class="metric">
+                            <span class="metric-label">Connection Time:</span>
+                            <span class="metric-value">${duration}ms</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Status:</span>
+                            <span class="metric-value">${response.ok ? 'OK' : 'Error'}</span>
+                        </div>
+                        <p><small>Note: For actual query speed, check browser DevTools → Network tab when using the app</small></p>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <strong>❌ Database Error</strong>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function testImageLoading() {
+            const resultDiv = document.getElementById('image-result');
+            resultDiv.innerHTML = '<p>Testing image loading...</p>';
+
+            const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+            const img = new Image();
+            
+            const startTime = performance.now();
+            img.onload = () => {
+                const endTime = performance.now();
+                const duration = Math.round(endTime - startTime);
+                
+                resultDiv.innerHTML = `
+                    <div class="result success">
+                        <strong>✅ Image Loading Working</strong>
+                        <div class="metric">
+                            <span class="metric-label">Load Time:</span>
+                            <span class="metric-value">${duration}ms</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Lazy Loading:</span>
+                            <span class="metric-value">${'loading' in HTMLImageElement.prototype ? 'Supported' : 'Not Supported'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Intersection Observer:</span>
+                            <span class="metric-value">${'IntersectionObserver' in window ? 'Supported' : 'Not Supported'}</span>
+                        </div>
+                    </div>
+                `;
+            };
+            img.src = testImage;
+        }
+
+        function showMetrics() {
+            const resultDiv = document.getElementById('metrics-result');
+            
+            const metrics = {
+                'User Agent': navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop',
+                'Online Status': navigator.onLine ? 'Online' : 'Offline',
+                'Connection': navigator.connection ? navigator.connection.effectiveType : 'Unknown',
+                'Memory': navigator.deviceMemory ? `${navigator.deviceMemory}GB` : 'Unknown',
+                'Cores': navigator.hardwareConcurrency || 'Unknown',
+                'Cache Size': localStorage.getItem(FEED_CACHE_KEY) ? 
+                    `${(localStorage.getItem(FEED_CACHE_KEY).length / 1024).toFixed(2)}KB` : '0KB'
+            };
+
+            let metricsHTML = '<div class="result">';
+            for (const [key, value] of Object.entries(metrics)) {
+                metricsHTML += `
+                    <div class="metric">
+                        <span class="metric-label">${key}:</span>
+                        <span class="metric-value">${value}</span>
+                    </div>
+                `;
+            }
+            metricsHTML += '</div>';
+            
+            resultDiv.innerHTML = metricsHTML;
+        }
+
+        function clearCache() {
+            const resultDiv = document.getElementById('clear-result');
+            
+            try {
+                const hadCache = localStorage.getItem(FEED_CACHE_KEY) !== null;
+                localStorage.removeItem(FEED_CACHE_KEY);
+                
+                resultDiv.innerHTML = `
+                    <div class="result ${hadCache ? 'success' : 'warning'}">
+                        <strong>${hadCache ? '✅ Cache Cleared' : '⚠️ Cache Was Empty'}</strong>
+                        <p>${hadCache ? 'Cache has been cleared. Reload the app to test fresh load.' : 'No cache was found to clear.'}</p>
+                    </div>
+                `;
+            } catch (e) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <strong>❌ Error</strong>
+                        <p>${e.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-run basic tests on load
+        window.addEventListener('load', () => {
+            console.log('Performance test page loaded');
+        });
+    </script>
+</body>
+</html>

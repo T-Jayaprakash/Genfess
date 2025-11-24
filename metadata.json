@@ -1,0 +1,7 @@
+{
+  "name": "Lastbench - Anonymous College Gossip",
+  "description": "Lastbench is an anonymous, Tamil-first, dark-mode gossip app for college students. It's a responsive PWA with a clean, youthful UI designed to appeal to Indian college students, featuring realtime-like feeds, post creation, and social interactions.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
