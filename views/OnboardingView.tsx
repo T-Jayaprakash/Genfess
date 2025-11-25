@@ -72,9 +72,9 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
     const handleSubmit = async () => {
         const finalCollege = isOtherCollege ? customCollege.trim() : college;
         if (!displayName.trim() || !finalCollege || !department || isSaving || Object.values(errors).some(e => e)) return;
-        
+
         setIsSaving(true);
-        
+
         // Proceed immediately without delay
         onComplete({
             displayName: displayName.trim(),
@@ -83,7 +83,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
             department,
         });
     };
-    
+
     const isSubmitDisabled = !displayName.trim() || (isOtherCollege ? !customCollege.trim() : !college) || !department || isSaving || Object.values(errors).some(e => e);
 
 
@@ -91,16 +91,16 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
         <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-dark-background p-6 animate-fade-in">
             <h1 className="text-4xl font-bold text-primary-text dark:text-dark-primary-text mb-2">{t.onboardingTitle}</h1>
             <p className="mb-8 text-lg text-secondary-text dark:text-dark-secondary-text">{t.onboardingSubtitle}</p>
-            
+
             <div className="w-full max-w-sm flex flex-col items-center gap-6">
                 {/* Avatar */}
                 <div className="flex flex-col items-center gap-2">
-                    <div 
+                    <div
                         className="w-28 h-28 rounded-full flex items-center justify-center text-5xl font-bold text-white dark:text-dark-background cursor-pointer transition-transform duration-200 active:scale-95"
                         style={{ backgroundColor: avatarColor }}
                         onClick={handleAvatarClick}
                     >
-                        {displayName.charAt(0).toUpperCase()}
+                        {(displayName || 'A').charAt(0).toUpperCase()}
                     </div>
                     <span className="text-xs text-secondary-text dark:text-dark-secondary-text">{t.avatarLabel}</span>
                 </div>
@@ -135,7 +135,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                             <option value="Other">Other...</option>
                         </select>
                         {isOtherCollege && (
-                             <input
+                            <input
                                 type="text"
                                 value={customCollege}
                                 onChange={e => setCustomCollege(e.target.value)}

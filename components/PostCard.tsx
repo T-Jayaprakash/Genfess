@@ -134,7 +134,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
                             loading="lazy"
                         />
                     ) : (
-                        post.displayName.charAt(0).toUpperCase()
+                        (post.displayName || 'A').charAt(0).toUpperCase()
                     )}
                 </div>
                 <div>
@@ -229,7 +229,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
             {/* Stats & Content */}
             <div className="px-3 pb-4">
                 <div className="flex gap-3 text-sm font-bold mb-1 text-primary-text dark:text-dark-primary-text">
-                    <p className="transition-all duration-300">{likesCount.toLocaleString()} {likesCount === 1 ? 'like' : 'likes'}</p>
+                    <p className="transition-all duration-300">{(likesCount || 0).toLocaleString()} {(likesCount || 0) === 1 ? 'like' : 'likes'}</p>
                 </div>
 
                 {post.commentsCount > 0 && (

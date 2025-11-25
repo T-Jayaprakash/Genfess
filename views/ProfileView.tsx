@@ -135,7 +135,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
                                 onError={() => setImgError(true)}
                             />
                         ) : (
-                            currentDisplayName.charAt(0).toUpperCase()
+                            (currentDisplayName || 'A').charAt(0).toUpperCase()
                         )}
                     </div>
                 </div>

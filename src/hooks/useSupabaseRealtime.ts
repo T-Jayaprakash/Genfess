@@ -9,6 +9,7 @@ interface RealtimeOptions {
     events?: PostgresEvent[];
     debounceMilliseconds?: number;
     reconnectBackoff?: number;
+    enabled?: boolean;
 }
 
 interface RealtimeFilteredOptions {
@@ -25,6 +26,7 @@ interface RealtimeFilteredOptions {
  * @param callback - Function called when changes occur
  * @param opts - Configuration options
  */
+
 export function useSupabaseRealtime(
     tableName: string,
     callback: (payload: RealtimePostgresChangesPayload<any>) => void,
@@ -33,7 +35,8 @@ export function useSupabaseRealtime(
     const {
         events = ['*'],
         debounceMilliseconds = 0,
-        reconnectBackoff = 1000
+        reconnectBackoff = 1000,
+        enabled = true
     } = opts;
 
     const channelRef = useRef<RealtimeChannel | null>(null);
@@ -45,6 +48,8 @@ export function useSupabaseRealtime(
     }, [callback]);
 
     useEffect(() => {
+        if (!enabled) return;
+
         const debouncedCallback = debounceMilliseconds > 0
             ? debounce(callbackRef.current, debounceMilliseconds)
             : callbackRef.current;
@@ -77,7 +82,7 @@ export function useSupabaseRealtime(
                 console.error(`❌ Realtime error on ${tableName}:`, err);
                 // Implement reconnect with backoff
                 setTimeout(() => {
-                    channel.subscribe();
+                    if (channelRef.current) channel.subscribe();
                 }, reconnectBackoff);
             }
             if (status === 'TIMED_OUT') {
@@ -95,7 +100,7 @@ export function useSupabaseRealtime(
                 console.log(`🔌 Unsubscribed from ${tableName}`);
             }
         };
-    }, [tableName, events.join(','), debounceMilliseconds, reconnectBackoff]);
+    }, [tableName, events.join(','), debounceMilliseconds, reconnectBackoff, enabled]);
 
     return channelRef.current;
 }

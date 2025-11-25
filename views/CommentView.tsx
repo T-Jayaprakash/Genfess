@@ -4,6 +4,8 @@ import { Post, Comment } from '../types/index';
 import { t } from '../constants/locales';
 import * as api from '../services/api';
 import { XMarkIcon, HeartIcon } from '../components/Icons';
+import { useSupabaseRealtimeFiltered } from '../src/hooks/useSupabaseRealtime';
+import { mergeRealtimeInsert } from '../src/utils/realtimeUtils';
 
 interface CommentViewProps {
     post: Post;
@@ -36,18 +38,18 @@ interface CommentItemProps {
 
 const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments, onReply, newlyAddedId }) => {
     const [avatarError, setAvatarError] = useState(false);
-    const [isLiked, setIsLiked] = useState(comment.isLiked || false); 
+    const [isLiked, setIsLiked] = useState(comment.isLiked || false);
     const [likesCount, setLikesCount] = useState(comment.likesCount);
 
     const handleLike = async () => {
         const newState = !isLiked;
         setIsLiked(newState);
         setLikesCount(prev => newState ? prev + 1 : Math.max(0, prev - 1));
-        
+
         try {
-             const newCount = await api.toggleCommentLike(comment.id);
-             // Only update count if returned, but keep optimistic liked state unless error
-             if (newCount !== undefined) setLikesCount(newCount);
+            const newCount = await api.toggleCommentLike(comment.id);
+            // Only update count if returned, but keep optimistic liked state unless error
+            if (newCount !== undefined) setLikesCount(newCount);
         } catch (e) {
             // Revert
             setIsLiked(!newState);
@@ -61,19 +63,19 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
         <div className={`flex flex-col ${isNewlyAdded ? 'animate-slide-in-bottom-fade' : ''}`}>
             <div className="flex items-start space-x-3 py-2">
                 {/* Avatar */}
-                <div 
+                <div
                     className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 text-white overflow-hidden bg-gray-300"
                     style={{ backgroundColor: (comment.authorAvatarUrl && !avatarError) ? 'transparent' : comment.authorAvatarColor }}
                 >
                     {comment.authorAvatarUrl && !avatarError ? (
-                        <img 
-                            src={comment.authorAvatarUrl} 
-                            alt={comment.authorAnonId} 
-                            className="w-full h-full object-cover" 
+                        <img
+                            src={comment.authorAvatarUrl}
+                            alt={comment.authorAnonId}
+                            className="w-full h-full object-cover"
                             onError={() => setAvatarError(true)}
                         />
                     ) : (
-                        <span className="opacity-50">{comment.authorAnonId.charAt(0)}</span>
+                        <span className="opacity-50">{(comment.authorAnonId || 'A').charAt(0)}</span>
                     )}
                 </div>
 
@@ -87,7 +89,7 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
                         <div className="flex items-center gap-3 mt-1 text-xs text-secondary-text dark:text-dark-secondary-text">
                             <span>{timeAgo(comment.createdAt)}</span>
                             {likesCount > 0 && <span>{likesCount} likes</span>}
-                            <button 
+                            <button
                                 onClick={() => onReply(comment)}
                                 className="font-semibold text-secondary-text dark:text-dark-secondary-text hover:text-primary-text dark:hover:text-dark-primary-text"
                             >
@@ -100,8 +102,8 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
                 {/* Like Button */}
                 <div className="flex flex-col items-center pt-1">
                     <button onClick={handleLike} className="p-1 active:scale-75 transition-transform">
-                        <HeartIcon 
-                            className={`w-3.5 h-3.5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-secondary-text dark:text-dark-secondary-text'}`} 
+                        <HeartIcon
+                            className={`w-3.5 h-3.5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-secondary-text dark:text-dark-secondary-text'}`}
                         />
                     </button>
                 </div>
@@ -113,10 +115,10 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
                     {replies.map(reply => {
                         const nestedReplies = allComments.filter(c => c.parentId === reply.id);
                         return (
-                            <CommentItem 
-                                key={reply.id} 
-                                comment={reply} 
-                                replies={nestedReplies} 
+                            <CommentItem
+                                key={reply.id}
+                                comment={reply}
+                                replies={nestedReplies}
                                 allComments={allComments}
                                 onReply={onReply}
                                 newlyAddedId={newlyAddedId}
@@ -136,7 +138,7 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
     const [isPosting, setIsPosting] = useState(false);
     const [newlyAddedCommentId, setNewlyAddedCommentId] = useState<string | null>(null);
     const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
-    
+
     const commentsListRef = useRef<HTMLDivElement>(null);
     const [postAvatarError, setPostAvatarError] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -150,7 +152,46 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
         };
         fetchComments();
     }, [post.id]);
-    
+
+    // Realtime subscription for new comments
+    useSupabaseRealtimeFiltered({
+        table: 'comments',
+        filter: `post_id=eq.${post.id}`,
+        callback: (payload) => {
+            if (payload.eventType === 'INSERT' && payload.new) {
+                const newCommentRaw = payload.new;
+                // Transform raw comment data to Comment type
+                const newCommentData: Comment = {
+                    id: newCommentRaw.id,
+                    postId: newCommentRaw.post_id,
+                    parentId: newCommentRaw.parent_id || null,
+                    authorAnonId: 'New User', // Placeholder - would need profile join
+                    authorAvatarColor: '#667eea',
+                    authorAvatarUrl: undefined,
+                    text: newCommentRaw.text,
+                    likesCount: newCommentRaw.likes_count || 0,
+                    isLiked: false,
+                    createdAt: new Date(newCommentRaw.created_at),
+                };
+
+                setComments(prev => {
+                    // Avoid duplicates
+                    if (prev.some(c => c.id === newCommentData.id)) {
+                        return prev;
+                    }
+                    return [...prev, newCommentData];
+                });
+
+                // Vibrate on new comment
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(30);
+                }
+            }
+        },
+        events: ['INSERT'],
+        debounceMilliseconds: 100
+    });
+
     // Scroll to bottom on new TOP LEVEL comment
     useEffect(() => {
         if (newlyAddedCommentId && !replyingTo) {
@@ -165,9 +206,9 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
             const parentId = replyingTo ? replyingTo.id : undefined;
             // Strip @username from text for the actual comment payload if desired, 
             // but typically keeping it is fine for context.
-            
+
             const addedComment = await api.addComment(post.id, newComment, parentId);
-            
+
             setComments(prev => [...prev, addedComment]);
             setNewlyAddedCommentId(addedComment.id);
             setNewComment('');
@@ -189,14 +230,14 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
     const rootComments = comments.filter(c => !c.parentId);
 
     return (
-        <div 
-            className="fixed inset-0 bg-black/60 z-20 flex items-end animate-fade-in" 
+        <div
+            className="fixed inset-0 bg-black/60 z-20 flex items-end animate-fade-in"
             onClick={onBack}
             aria-modal="true"
             role="dialog"
         >
-            <div 
-                className="bg-card-bg dark:bg-dark-card-bg w-full max-h-[90vh] h-[90vh] rounded-t-2xl flex flex-col animate-slide-in-up shadow-2xl shadow-black/50" 
+            <div
+                className="bg-card-bg dark:bg-dark-card-bg w-full max-h-[90vh] h-[90vh] rounded-t-2xl flex flex-col animate-slide-in-up shadow-2xl shadow-black/50"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
@@ -212,19 +253,19 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
                 <div className="flex-grow overflow-y-auto px-4" ref={commentsListRef}>
                     {/* Original Post Caption */}
                     <div className="flex items-start space-x-3 py-4 border-b border-border-color dark:border-dark-border-color">
-                         <div 
+                        <div
                             className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 text-white overflow-hidden bg-gray-300"
                             style={{ backgroundColor: (post.authorAvatarUrl && !postAvatarError) ? 'transparent' : post.authorAvatarColor }}
                         >
                             {post.authorAvatarUrl && !postAvatarError ? (
-                                <img 
-                                    src={post.authorAvatarUrl} 
-                                    alt={post.displayName} 
+                                <img
+                                    src={post.authorAvatarUrl}
+                                    alt={post.displayName}
                                     className="w-full h-full object-cover"
                                     onError={() => setPostAvatarError(true)}
                                 />
                             ) : (
-                                post.displayName.charAt(0).toUpperCase()
+                                (post.displayName || 'A').charAt(0).toUpperCase()
                             )}
                         </div>
                         <div className="text-sm">
@@ -244,9 +285,9 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
                             {rootComments.map(comment => {
                                 const replies = comments.filter(c => c.parentId === comment.id);
                                 return (
-                                    <CommentItem 
-                                        key={comment.id} 
-                                        comment={comment} 
+                                    <CommentItem
+                                        key={comment.id}
+                                        comment={comment}
                                         replies={replies}
                                         allComments={comments}
                                         onReply={handleReplyClick}
@@ -257,7 +298,7 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
                         </div>
                     )}
                 </div>
-                
+
                 {/* Comment Input Footer */}
                 <div className="flex-shrink-0 bg-card-bg dark:bg-dark-card-bg border-t border-border-color dark:border-dark-border-color">
                     {replyingTo && (

@@ -1,7 +1,7 @@
 
 export type PostTag = 'Confess' | 'Roast' | 'Meme' | 'Love' | 'Dept' | 'Other';
 
-export type View = 'home' | 'create' | 'profile';
+export type View = 'home' | 'create' | 'profile' | 'notifications';
 
 export type Theme = 'light' | 'dark';
 

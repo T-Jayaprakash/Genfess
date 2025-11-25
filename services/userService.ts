@@ -79,6 +79,8 @@ export const registerPushSubscription = async () => {
 
                 PushNotifications.addListener('registrationError', (error) => {
                     console.error('Push registration error: ', error);
+                    // Alert the user so they know why it's not working
+                    alert(`Push Notification Setup Failed: ${JSON.stringify(error)}. Did you replace google-services.json?`);
                 });
             }
         } catch (e) {
@@ -98,12 +100,19 @@ export const registerPushSubscription = async () => {
 
         if (!subscription) {
             try {
+                // Validate VAPID key format before attempting subscription
+                if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.includes('post_your_own')) {
+                    console.warn("Invalid VAPID key detected. Skipping web push subscription.");
+                    return;
+                }
+
+                const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
                 subscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    applicationServerKey
                 });
             } catch (e) {
-                console.warn("Push subscription failed (likely invalid VAPID key).");
+                console.warn("Push subscription failed (likely invalid VAPID key).", e);
                 return;
             }
         }

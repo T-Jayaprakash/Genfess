@@ -1,5 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
+import { CapacitorStorage } from './storageAdapter';
 
 // Hardcoded credentials to prevent "connection string is missing" errors
 const supabaseUrl = 'https://koxukijufywvgnxqtuzz.supabase.co';
@@ -13,7 +14,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false // Faster load, as we handle auth state manually
+        detectSessionInUrl: false, // Faster load, as we handle auth state manually
+        storage: CapacitorStorage,
     },
     // Improve global fetch behavior
     global: {

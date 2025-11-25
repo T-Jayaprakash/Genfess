@@ -13,6 +13,7 @@ import LoginView from './views/LoginView';
 import OnboardingView from './views/OnboardingView';
 import SignUpView from './views/SignUpView';
 import { ToastProvider } from './components/Toast'; // Import Provider
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Lazy Load heavy components to improve initial rendering speed
 const CommentView = lazy(() => import('./views/CommentView'));
@@ -20,6 +21,7 @@ const ReportModal = lazy(() => import('./components/ReportModal'));
 const PostOptionsModal = lazy(() => import('./components/PostOptionsModal'));
 const EditPostModal = lazy(() => import('./components/EditPostModal'));
 const ImageViewer = lazy(() => import('./components/ImageViewer'));
+const NotificationsView = lazy(() => import('./views/NotificationsView'));
 
 
 
@@ -155,6 +157,8 @@ const AppContent: React.FC = () => {
     const handleLogin = (loggedInUser: User) => {
         setUser(loggedInUser);
         setAuthView('login');
+        // Request notification permission on login
+        userService.registerPushSubscription();
     };
 
     const handleSignUp = (signedUpUser: User) => {
@@ -171,6 +175,8 @@ const AppContent: React.FC = () => {
         };
         await userService.saveUser(fullyUpdatedUser);
         setUser(fullyUpdatedUser);
+        // Request notification permission after onboarding
+        userService.registerPushSubscription();
     };
 
     const handleLogout = async () => {
@@ -376,6 +382,7 @@ const AppContent: React.FC = () => {
                         newPost={latestPost}
                         deletedPostId={deletedPostId}
                         updatedPost={updatedPost}
+                        onNotificationClick={() => navigateTo('notifications')}
                     />
                 </div>
 
@@ -396,9 +403,15 @@ const AppContent: React.FC = () => {
                         onViewImages={handleViewImages}
                     />
                 )}
+
+                {currentView === 'notifications' && (
+                    <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin h-8 w-8 border-2 border-accent-primary border-t-transparent rounded-full"></div></div>}>
+                        <NotificationsView userId={user.userId} onBack={() => window.history.back()} />
+                    </Suspense>
+                )}
             </main>
 
-            {currentView !== 'create' && (
+            {currentView !== 'create' && currentView !== 'notifications' && (
                 <BottomNav currentView={currentView} setView={navigateTo} />
             )}
 
@@ -447,7 +460,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
     return (
         <ToastProvider>
-            <AppContent />
+            <ErrorBoundary>
+                <AppContent />
+            </ErrorBoundary>
         </ToastProvider>
     );
 };

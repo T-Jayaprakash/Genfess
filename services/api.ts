@@ -5,7 +5,7 @@ import { getCurrentUser } from './userService';
 const PROFILE_FIELDS = 'id, anon_id, display_name, avatar_color, college, department, has_onboarded';
 const FEED_CACHE_KEY = 'lastbench_feed_cache';
 
-const mapDbPostToPost = (dbPost: any): Post => {
+export const mapDbPostToPost = (dbPost: any): Post => {
     const profile = Array.isArray(dbPost.profiles) ? dbPost.profiles[0] : dbPost.profiles;
 
     let images: string[] = dbPost.images || [];
@@ -44,6 +44,25 @@ const mapDbPostToPost = (dbPost: any): Post => {
         trendingScore: (dbPost.likes_count || 0) + (dbPost.comments_count * 2),
         isLiked: dbPost.isLiked || false, // Will be set by getPosts after fetching user likes
     };
+};
+
+export const getPostById = async (postId: string): Promise<Post | null> => {
+    try {
+        const { data, error } = await supabase
+            .from('posts')
+            .select(`
+                *,
+                profiles:author_id (${PROFILE_FIELDS})
+            `)
+            .eq('id', postId)
+            .single();
+
+        if (error || !data) return null;
+        return mapDbPostToPost(data);
+    } catch (e) {
+        console.error("Error fetching post by ID:", e);
+        return null;
+    }
 };
 
 const mapDbCommentToComment = (dbComment: any): Comment => {
@@ -132,8 +151,6 @@ export const getPosts = async (page = 0, limit = 20): Promise<Post[]> => {
 
         const { data, error } = postsResult;
 
-        // ... (existing fallback logic) ...
-
         if (error) {
             console.error('getPosts Error:', JSON.stringify(error, null, 2));
             return [];
@@ -149,7 +166,15 @@ export const getPosts = async (page = 0, limit = 20): Promise<Post[]> => {
             });
         }
 
-        // ... (caching logic) ...
+        // Cache ONLY the first page for faster initial load
+        if (page === 0 && mappedPosts.length > 0) {
+            try {
+                localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(mappedPosts.slice(0, 20)));
+                console.log(`✅ Cached ${Math.min(mappedPosts.length, 20)} posts`);
+            } catch (e) {
+                console.warn("Failed to cache posts:", e);
+            }
+        }
 
         return mappedPosts;
     } catch (err) {
@@ -161,56 +186,92 @@ export const getPosts = async (page = 0, limit = 20): Promise<Post[]> => {
 export const createPost = async (newPostData: { text: string; images?: string[]; tags: PostTag[] }): Promise<Post | null> => {
     try {
         const user = await getCurrentUser();
-        if (!user) throw new Error('User not authenticated');
+        if (!user) {
+            console.error('❌ createPost: User not authenticated');
+            alert('You must be logged in to create a post');
+            throw new Error('User not authenticated');
+        }
 
+        console.log('📝 Creating post:', { userId: user.userId, college: user.college, tags: newPostData.tags });
+
+        // Simple payload - only include fields we're certain exist
         const payload: any = {
             author_id: user.userId,
             text: newPostData.text,
-            tags: newPostData.tags,
-            department: user.department,
-            college: user.college // DENORMALIZATION: Save college on post to speed up future queries
+            tags: newPostData.tags || [],
+            department: user.department || 'Other',
+            college: user.college || 'Unknown',
+            likes_count: 0,
+            comments_count: 0
         };
 
+        // Add images if provided
         if (newPostData.images && newPostData.images.length > 0) {
             payload.images = newPostData.images;
             payload.image_url = newPostData.images[0];
         }
 
-        const { data, error } = await supabase
+        console.log('📤 Inserting post with payload:', JSON.stringify(payload, null, 2));
+
+        // Try insert WITHOUT profile join first (faster, more reliable)
+        const { data: insertData, error: insertError } = await supabase
             .from('posts')
             .insert(payload)
-            .select(`
-                *,
-                profiles:author_id (${PROFILE_FIELDS})
-            `)
+            .select('*')
             .single();
 
-        if (error) {
-            const isSchemaError = error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('images') || error.message?.includes('college');
+        if (insertError) {
+            console.error('❌ createPost insert error:', insertError);
+            console.error('Error code:', insertError.code);
+            console.error('Error message:', insertError.message);
+            console.error('Error details:', JSON.stringify(insertError, null, 2));
 
-            // Fallback logic if schema is old
-            if (isSchemaError) {
-                // Remove fields that might not exist yet
-                if (payload.images) {
-                    payload.image_url = JSON.stringify(payload.images);
-                    delete payload.images;
-                }
-                delete payload.college; // Remove college if column missing
-
-                const { data: retryData, error: retryError } = await supabase
-                    .from('posts')
-                    .insert(payload)
-                    .select(`*, profiles:author_id (${PROFILE_FIELDS})`)
-                    .single();
-
-                if (retryError) return null;
-                return mapDbPostToPost(retryData);
+            // Show user-friendly error
+            if (insertError.message?.includes('permission') || insertError.message?.includes('policy')) {
+                alert('Permission denied: Please check database settings');
+            } else if (insertError.message?.includes('column')) {
+                alert(`Database column error: ${insertError.message}`);
+            } else {
+                alert(`Failed to create post: ${insertError.message}`);
             }
             return null;
         }
 
-        return mapDbPostToPost(data);
-    } catch (err) {
+        if (!insertData) {
+            console.error('❌ No data returned after insert');
+            alert('Post created but no data returned');
+            return null;
+        }
+
+        console.log('✅ Post inserted, ID:', insertData.id);
+
+        // Now fetch the profile separately
+        const { data: profileData } = await supabase
+            .from('profiles')
+            .select(PROFILE_FIELDS)
+            .eq('user_id', user.userId)
+            .single();
+
+        // Merge post with profile data
+        const completePost = {
+            ...insertData,
+            profiles: profileData || {
+                anon_id: user.anonId,
+                display_name: user.displayName,
+                avatar_color: user.avatarColor,
+                avatar_url: user.avatarUrl,
+                college: user.college,
+                department: user.department
+            }
+        };
+
+        console.log('✅ Post created successfully with ID:', completePost.id);
+        return mapDbPostToPost(completePost);
+
+    } catch (err: any) {
+        console.error('❌ createPost unexpected error:', err);
+        console.error('Error stack:', err.stack);
+        alert(`Unexpected error creating post: ${err.message}`);
         return null;
     }
 };
@@ -219,26 +280,16 @@ export const deletePost = async (postId: string): Promise<boolean> => {
     const user = await getCurrentUser();
     if (!user) {
         console.error("deletePost: No user authenticated");
+        alert('You must be logged in to delete posts');
         return false;
     }
 
     try {
-        // 1. Delete Post Interactions (Likes)
-        await supabase.from('interactions').delete().eq('post_id', postId);
+        console.log(`🗑️ Deleting post ${postId} by user ${user.userId}`);
 
-        // 2. Delete Reports
-        await supabase.from('reports').delete().eq('post_id', postId);
+        // Database now handles cascading deletes for interactions, comments, and reports!
+        // We just need to delete the post itself.
 
-        // 3. Delete Comments and their Interactions
-        const { data: comments } = await supabase.from('comments').select('id').eq('post_id', postId);
-
-        if (comments && comments.length > 0) {
-            const commentIds = comments.map(c => c.id);
-            await supabase.from('interactions').delete().in('comment_id', commentIds);
-            await supabase.from('comments').delete().eq('post_id', postId);
-        }
-
-        // 4. Finally, Delete the Post
         const { error, count } = await supabase
             .from('posts')
             .delete({ count: 'exact' })
@@ -247,67 +298,141 @@ export const deletePost = async (postId: string): Promise<boolean> => {
 
         if (error) {
             console.error("Error deleting post DB:", JSON.stringify(error, null, 2));
+            alert(`Failed to delete post: ${error.message}`);
             return false;
         }
 
         if (count === 0) {
             console.warn("Delete op returned 0 rows affected. Permission denied or post not found.");
+            alert('Could not delete post. You must be the author.');
             return false;
         }
 
+        console.log('✅ Post deleted successfully');
         return true;
-    } catch (e) {
+    } catch (e: any) {
         console.error("Unexpected error during delete sequence:", e);
+        alert(`Unexpected error deleting post: ${e.message}`);
         return false;
     }
 };
 
 const toggleInteraction = async (postId: string, type: 'like'): Promise<number> => {
-    const user = await getCurrentUser();
-    if (!user) return 0;
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            console.error('❌ toggleInteraction: No user found');
+            return 0;
+        }
 
-    const { data: existingInteraction, error: fetchError } = await supabase
-        .from('interactions')
-        .select('*')
-        .eq('user_id', user.userId)
-        .eq('post_id', postId)
-        .eq('type', type)
-        .maybeSingle();
+        console.log(`🔄 toggleInteraction: ${type} for post ${postId} by user ${user.userId}`);
 
-    if (fetchError) return 0;
-
-    let newCount = 0;
-
-    if (existingInteraction) {
-        const { error: deleteError } = await supabase
+        // Check existing interaction
+        const { data: existingInteraction, error: fetchError } = await supabase
             .from('interactions')
-            .delete()
-            .eq('id', existingInteraction.id);
+            .select('*')
+            .eq('user_id', user.userId)
+            .eq('post_id', postId)
+            .eq('type', type)
+            .maybeSingle();
 
-        if (!deleteError) {
-            const { data: post } = await supabase.from('posts').select(`${type}s_count`).eq('id', postId).single();
+        if (fetchError) {
+            console.error('❌ toggleInteraction fetch error:', fetchError);
+            return 0;
+        }
+
+        let newCount = 0;
+
+        if (existingInteraction) {
+            // UNLIKE - Delete interaction
+            console.log('👎 Removing like...');
+            const { error: deleteError } = await supabase
+                .from('interactions')
+                .delete()
+                .eq('id', existingInteraction.id);
+
+            if (deleteError) {
+                console.error('❌ Delete interaction error:', deleteError);
+                return 0;
+            }
+
+            // Decrement count
+            const { data: post, error: fetchPostError } = await supabase
+                .from('posts')
+                .select(`${type}s_count`)
+                .eq('id', postId)
+                .single();
+
+            if (fetchPostError) {
+                console.error('❌ Fetch post error:', fetchPostError);
+                return 0;
+            }
+
             const currentCount = post ? post[`${type}s_count`] : 0;
             newCount = Math.max(0, currentCount - 1);
-            await supabase.from('posts').update({ [`${type}s_count`]: newCount }).eq('id', postId);
-        }
-    } else {
-        const { error: insertError } = await supabase
-            .from('interactions')
-            .insert({
-                user_id: user.userId,
-                post_id: postId,
-                type: type
-            });
 
-        if (!insertError) {
-            const { data: post } = await supabase.from('posts').select(`${type}s_count`).eq('id', postId).single();
+            const { error: updateError } = await supabase
+                .from('posts')
+                .update({ [`${type}s_count`]: newCount })
+                .eq('id', postId);
+
+            if (updateError) {
+                console.error('❌ Update post count error:', updateError);
+                return 0;
+            }
+
+            console.log(`✅ Unlike successful. New count: ${newCount}`);
+        } else {
+            // LIKE - Insert interaction
+            console.log('👍 Adding like...');
+            const { error: insertError } = await supabase
+                .from('interactions')
+                .insert({
+                    user_id: user.userId,
+                    post_id: postId,
+                    type: type
+                });
+
+            if (insertError) {
+                console.error('❌ Insert interaction error:', insertError);
+                console.error('Error details:', JSON.stringify(insertError, null, 2));
+                return 0;
+            }
+
+            // Increment count
+            const { data: post, error: fetchPostError } = await supabase
+                .from('posts')
+                .select(`${type}s_count`)
+                .eq('id', postId)
+                .single();
+
+            if (fetchPostError) {
+                console.error('❌ Fetch post error:', fetchPostError);
+                return 0;
+            }
+
             const currentCount = post ? post[`${type}s_count`] : 0;
             newCount = currentCount + 1;
-            await supabase.from('posts').update({ [`${type}s_count`]: newCount }).eq('id', postId);
-        }
-    }
 
-    return newCount;
+            const { error: updateError } = await supabase
+                .from('posts')
+                .update({ [`${type}s_count`]: newCount })
+                .eq('id', postId);
+
+            if (updateError) {
+                console.error('❌ Update post count error:', updateError);
+                console.error('Error details:', JSON.stringify(updateError, null, 2));
+                return 0;
+            }
+
+            console.log(`✅ Like successful. New count: ${newCount}`);
+        }
+
+        return newCount;
+    } catch (err) {
+        console.error('❌ toggleInteraction unexpected error:', err);
+        return 0;
+    }
 };
 
 export const toggleLike = async (postId: string): Promise<number> => {
@@ -355,22 +480,50 @@ export const getUserPosts = async (anonId: string): Promise<Post[]> => {
 
 export const updatePost = async (postId: string, text: string): Promise<boolean> => {
     const user = await getCurrentUser();
-    if (!user) return false;
+    if (!user) {
+        console.error('❌ updatePost: No user authenticated');
+        alert('You must be logged in to edit posts');
+        return false;
+    }
 
     try {
-        const { error } = await supabase
+        console.log(`✏️ Updating post ${postId} by user ${user.userId}`);
+        console.log(`New text: "${text}"`);
+
+        const { data, error } = await supabase
             .from('posts')
             .update({ text: text, is_edited: true })
             .eq('id', postId)
-            .eq('author_id', user.userId);
+            .eq('author_id', user.userId)
+            .select('id');
 
         if (error) {
-            console.error("Error updating post:", error);
+            console.error("❌ Error updating post:", error);
+            console.error('Error code:', error.code);
+            console.error('Error message:', error.message);
+            console.error('Error details:', JSON.stringify(error, null, 2));
+
+            // Show user-friendly error
+            if (error.message?.includes('permission') || error.message?.includes('policy')) {
+                alert('Permission denied: You can only edit your own posts');
+            } else {
+                alert(`Failed to update post: ${error.message}`);
+            }
             return false;
         }
+
+        if (!data || data.length === 0) {
+            console.warn('⚠️ No rows updated. Post not found or you are not the author.');
+            alert('Could not update post. You must be the author.');
+            return false;
+        }
+
+        console.log('✅ Post updated successfully');
         return true;
-    } catch (e) {
-        console.error("Exception updating post:", e);
+    } catch (e: any) {
+        console.error("❌ Exception updating post:", e);
+        console.error('Error stack:', e.stack);
+        alert(`Unexpected error: ${e.message}`);
         return false;
     }
 };
@@ -564,31 +717,35 @@ export const toggleCommentLike = async (commentId: string): Promise<number | und
 };
 
 export const submitReport = async (postId: string, reason: string): Promise<boolean | 'DELETED'> => {
+    const user = await getCurrentUser();
+    if (!user) return false;
+
     try {
         // 1. Insert Report
+        // The database trigger 'on_report_added' will automatically check count
+        // and delete the post if count >= 10.
         const { error } = await supabase.from('reports').insert({
             post_id: postId,
-            reason: reason
+            reason: reason,
+            reporter_id: user.userId // Ensure reporter_id is set
         });
 
         if (error) {
-            if (error.code === '42P01' || error.code === 'PGRST205') {
-                // Table doesn't exist, pretend success
-                return true;
-            }
             console.error("Error submitting report:", JSON.stringify(error, null, 2));
             return false;
         }
 
-        // 2. Check Count for Auto-Delete
-        const { count, error: countError } = await supabase
-            .from('reports')
-            .select('*', { count: 'exact', head: true })
-            .eq('post_id', postId);
+        // 2. Check if post still exists (to see if it was auto-deleted)
+        const { data, error: fetchError } = await supabase
+            .from('posts')
+            .select('id')
+            .eq('id', postId)
+            .single();
 
-        if (!countError && count !== null && count >= 10) {
-            const deleteSuccess = await deletePost(postId);
-            if (deleteSuccess) return 'DELETED';
+        // If post is gone (data is null or error is 'PGRST116' - row not found)
+        if (!data || (fetchError && fetchError.code === 'PGRST116')) {
+            console.log('🚨 Post was auto-deleted due to reports!');
+            return 'DELETED';
         }
 
         return true;

@@ -64,15 +64,15 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
     const getNotificationText = (notif: NotificationWithPost): string => {
         switch (notif.type) {
             case 'like':
-                return `${notif.actor_name} liked your post`;
+                return `liked your post`;
             case 'comment':
-                return `${notif.actor_name} commented: ${notif.content?.substring(0, 50)}${notif.content && notif.content.length > 50 ? '...' : ''}`;
+                return `commented: ${notif.content?.substring(0, 40)}${notif.content && notif.content.length > 40 ? '...' : ''}`;
             case 'reply':
-                return `${notif.actor_name} replied to your comment`;
+                return `replied to your comment`;
             case 'mention':
-                return `${notif.actor_name} mentioned you`;
+                return `mentioned you`;
             default:
-                return 'New notification';
+                return 'sent you a notification';
         }
     };
 
@@ -96,97 +96,133 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
             {/* Bell Icon */}
             <button
                 onClick={handleOpenNotifications}
-                className="relative p-2 text-primary-text dark:text-dark-primary-text hover:opacity-70 transition-opacity"
+                className="relative p-2 text-primary-text dark:text-dark-primary-text hover:opacity-70 transition-opacity active:scale-95"
                 aria-label="Notifications"
             >
                 <BellIcon className="w-6 h-6" />
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse">
-                        {unreadCount > 9 ? '9+' : unreadCount}
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-bold px-1">
+                        {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 )}
             </button>
 
-            {/* Notifications Panel */}
+            {/* Notifications Panel - Instagram Style */}
             {isOpen && (
-                <div className="fixed inset-0 z-50 bg-black/60 flex flex-col justify-end sm:justify-center sm:items-center animate-fade-in">
-                    <div className="bg-card-bg dark:bg-dark-card-bg w-full sm:max-w-lg sm:rounded-2xl sm:max-h-[80vh] flex flex-col overflow-hidden animate-slide-in-up shadow-2xl">
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-border-color dark:border-dark-border-color">
-                            <h2 className="text-lg font-bold text-primary-text dark:text-dark-primary-text">
+                <div
+                    className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center sm:justify-center animate-fade-in"
+                    onClick={() => setIsOpen(false)}
+                >
+                    <div
+                        className="bg-background dark:bg-dark-background w-full sm:max-w-md sm:rounded-2xl max-h-[85vh] sm:max-h-[600px] flex flex-col overflow-hidden animate-slide-in-up shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header - Instagram Style */}
+                        <div className="px-4 py-3 border-b border-border-color dark:border-dark-border-color flex items-center justify-between bg-background dark:bg-dark-background sticky top-0 z-10">
+                            <h2 className="text-base font-semibold text-primary-text dark:text-dark-primary-text">
                                 Notifications
                             </h2>
-                            <div className="flex items-center gap-2">
-                                {unreadCount > 0 && (
-                                    <button
-                                        onClick={handleMarkAllRead}
-                                        className="text-sm text-accent-primary hover:text-accent-secondary font-medium"
-                                    >
-                                        Mark all read
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => setIsOpen(false)}
-                                    className="text-secondary-text dark:text-dark-secondary-text hover:text-primary-text"
-                                >
-                                    <XMarkIcon className="w-6 h-6" />
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="text-secondary-text dark:text-dark-secondary-text hover:text-primary-text p-1 transition-colors"
+                            >
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
                         </div>
 
+                        {/* Mark all read button */}
+                        {unreadCount > 0 && (
+                            <div className="px-4 py-2 border-b border-border-color dark:border-dark-border-color">
+                                <button
+                                    onClick={handleMarkAllRead}
+                                    className="text-sm text-accent-primary hover:text-accent-secondary font-semibold transition-colors"
+                                >
+                                    Mark all as read
+                                </button>
+                            </div>
+                        )}
+
                         {/* Notifications List */}
-                        <div className="flex-1 overflow-y-auto no-scrollbar">
+                        <div className="flex-1 overflow-y-auto no-scrollbar bg-background dark:bg-dark-background">
                             {loading ? (
                                 <div className="flex justify-center items-center h-40">
-                                    <div className="w-8 h-8 border-4 border-accent-primary border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full animate-spin"></div>
                                 </div>
                             ) : notifications.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-40 text-secondary-text dark:text-dark-secondary-text">
-                                    <BellIcon className="w-12 h-12 mb-2 opacity-50" />
-                                    <p>No notifications yet</p>
+                                <div className="flex flex-col items-center justify-center h-60 px-8 text-center">
+                                    <BellIcon className="w-16 h-16 mb-4 opacity-20 text-secondary-text" />
+                                    <p className="text-base font-semibold text-primary-text dark:text-dark-primary-text mb-1">
+                                        No notifications yet
+                                    </p>
+                                    <p className="text-sm text-secondary-text dark:text-dark-secondary-text">
+                                        When someone likes or comments on your posts, you'll see it here.
+                                    </p>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-border-color dark:divide-dark-border-color">
-                                    {notifications.map((notif) => (
+                                <div>
+                                    {notifications.map((notif, index) => (
                                         <div
                                             key={notif.id}
-                                            className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${!notif.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                                            className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-all duration-200 cursor-pointer border-b border-border-color/30 dark:border-dark-border-color/30 ${!notif.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
                                                 }`}
+                                            style={{
+                                                animationDelay: `${index * 30}ms`
+                                            }}
                                         >
-                                            <div className="flex items-start gap-3">
-                                                {/* Avatar */}
-                                                <div
-                                                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
-                                                    style={{
-                                                        backgroundColor: notif.actor_avatar
-                                                            ? 'transparent'
-                                                            : '#667eea'
-                                                    }}
-                                                >
-                                                    {notif.actor_avatar ? (
-                                                        <img
-                                                            src={notif.actor_avatar}
-                                                            alt={notif.actor_name}
-                                                            className="w-full h-full rounded-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        notif.actor_name.charAt(0).toUpperCase()
+                                            <div className="flex items-center gap-3">
+                                                {/* Avatar - Instagram Style */}
+                                                <div className="relative flex-shrink-0">
+                                                    <div
+                                                        className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-base overflow-hidden"
+                                                        style={{
+                                                            backgroundColor: notif.actor_avatar
+                                                                ? 'transparent'
+                                                                : '#667eea'
+                                                        }}
+                                                    >
+                                                        {notif.actor_avatar ? (
+                                                            <img
+                                                                src={notif.actor_avatar}
+                                                                alt={notif.actor_name}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            (notif.actor_name || 'A').charAt(0).toUpperCase()
+                                                        )}
+                                                    </div>
+                                                    {!notif.read && (
+                                                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-accent-primary rounded-full border-2 border-background dark:border-dark-background"></div>
                                                     )}
                                                 </div>
 
                                                 {/* Content */}
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm text-primary-text dark:text-dark-primary-text">
-                                                        {getNotificationText(notif)}
+                                                    <p className="text-sm text-primary-text dark:text-dark-primary-text leading-tight">
+                                                        <span className="font-semibold">{notif.actor_name || 'Someone'}</span>
+                                                        {' '}
+                                                        <span className="text-secondary-text dark:text-dark-secondary-text">
+                                                            {getNotificationText(notif)}
+                                                        </span>
                                                     </p>
                                                     <p className="text-xs text-secondary-text dark:text-dark-secondary-text mt-1">
                                                         {timeAgo(notif.created_at)}
                                                     </p>
                                                 </div>
 
-                                                {/* Unread indicator */}
-                                                {!notif.read && (
-                                                    <div className="w-2 h-2 bg-accent-primary rounded-full flex-shrink-0 mt-2"></div>
+                                                {/* Type indicator icon */}
+                                                {notif.type === 'like' && (
+                                                    <div className="flex-shrink-0">
+                                                        <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </div>
+                                                )}
+                                                {notif.type === 'comment' && (
+                                                    <div className="flex-shrink-0">
+                                                        <svg className="w-5 h-5 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                        </svg>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>

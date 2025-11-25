@@ -12,8 +12,8 @@ import { mergeRealtimeEvent } from '../src/utils/realtimeUtils';
 
 const PULL_THRESHOLD = 100;
 const AUTO_REFRESH_INTERVAL = 20000; // 20 seconds - More frequent like Instagram
-const INITIAL_LOAD_COUNT = 5; // Load first 5 posts instantly
-const PAGINATION_SIZE = 10; // Load 10 more posts when scrolling
+const INITIAL_LOAD_COUNT = 20; // Load first 20 posts instantly
+const PAGINATION_SIZE = 20; // Load 20 more posts when scrolling
 const SCROLL_DEBOUNCE = 100; // Debounce scroll events for performance
 
 interface HomeFeedProps {
@@ -23,6 +23,8 @@ interface HomeFeedProps {
     onViewImages: (images: string[], index: number) => void;
     newPost: Post | null;
     deletedPostId: string | null;
+    updatedPost?: Post | null;
+    onNotificationClick: () => void;
 }
 
 const FeedSkeleton = () => (
@@ -39,7 +41,7 @@ const FeedSkeleton = () => (
     </div>
 );
 
-const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClick, onViewImages, newPost, deletedPostId, updatedPost }) => {
+const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClick, onViewImages, newPost, deletedPostId, updatedPost, onNotificationClick }) => {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -112,42 +114,70 @@ const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClic
     }, []);
 
     // Realtime subscription for posts (feature-flagged)
-    useEffect(() => {
-        // @ts-ignore - Vite env var
-        const useRealtimeEnabled = import.meta.env?.VITE_USE_SUPABASE_REALTIME === 'true';
+    // @ts-ignore - Vite env var
+    const useRealtimeEnabled = import.meta.env?.VITE_USE_SUPABASE_REALTIME === 'true';
 
-        if (!useRealtimeEnabled || !user) return;
+    useSupabaseRealtime(
+        'posts',
+        async (payload) => {
+            console.log('📡 Realtime post event:', payload.eventType, payload);
 
-        console.log('🔌 Setting up Realtime subscription for posts...');
+            if (payload.eventType === 'INSERT' && payload.new) {
+                // Fetch full post details including profile to prevent crashes/missing data
+                const fullPost = await api.getPostById(payload.new.id);
 
-        // The hook handles subscription/cleanup automatically
-        useSupabaseRealtime(
-            'posts',
-            (payload) => {
-                console.log('📡 Realtime post event:', payload.eventType, payload);
+                if (fullPost) {
+                    setPosts(currentPosts => {
+                        // Check for duplicates
+                        if (currentPosts.some(p => p.id === fullPost.id)) return currentPosts;
 
-                setPosts(currentPosts => {
-                    const updated = mergeRealtimeEvent(currentPosts, payload);
+                        // Update lastPostIdRef
+                        lastPostIdRef.current = fullPost.id;
 
-                    // Update lastPostIdRef if new post
-                    if (payload.eventType === 'INSERT' && updated.length > 0) {
-                        lastPostIdRef.current = updated[0].id;
-
-                        // Vibrate on new post if app is active
+                        // Vibrate
                         if (!document.hidden && 'vibrate' in navigator) {
                             navigator.vibrate(10);
                         }
+
+                        return [fullPost, ...currentPosts];
+                    });
+                }
+            } else {
+                setPosts(currentPosts => {
+                    // For UPDATE events, we need to merge carefully to preserve profile data
+                    if (payload.eventType === 'UPDATE' && payload.new) {
+                        const updatedDbPost = payload.new;
+                        return currentPosts.map(post => {
+                            if (post.id === updatedDbPost.id) {
+                                // Merge the update while preserving existing profile data
+                                return {
+                                    ...post,
+                                    text: updatedDbPost.text || post.text,
+                                    likesCount: updatedDbPost.likes_count ?? post.likesCount,
+                                    commentsCount: updatedDbPost.comments_count ?? post.commentsCount,
+                                    trendingScore: (updatedDbPost.likes_count || 0) + ((updatedDbPost.comments_count || 0) * 2),
+                                };
+                            }
+                            return post;
+                        });
                     }
 
-                    return updated;
+                    // For DELETE, use the standard merge
+                    if (payload.eventType === 'DELETE') {
+                        return mergeRealtimeEvent(currentPosts, payload);
+                    }
+
+                    return currentPosts;
                 });
-            },
-            {
-                events: ['INSERT', 'UPDATE', 'DELETE'],
-                debounceMilliseconds: 150
             }
-        );
-    }, [user]);
+        },
+        {
+            events: ['INSERT', 'UPDATE', 'DELETE'],
+            debounceMilliseconds: 150,
+            enabled: useRealtimeEnabled && !!user
+        }
+    );
+
 
     // Load remaining posts in background after initial load
     const loadRemainingPostsInBackground = async () => {
@@ -372,14 +402,14 @@ const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClic
 
     return (
         <div className="h-full flex flex-col bg-background dark:bg-dark-background overflow-hidden relative">
-            <Header isVisible={showHeader} user={user} />
+            <Header isVisible={showHeader} user={user} onNotificationClick={onNotificationClick} />
 
             {/* New Posts Available Banner (Instagram-like) */}
             {/* Banner removed as requested */}
 
             <div
                 ref={feedContainerRef}
-                className="flex-grow overflow-y-auto relative pt-[100px] no-scrollbar will-change-transform"
+                className="flex-grow overflow-y-auto relative pt-[85px] no-scrollbar will-change-transform"
                 onScroll={handleScroll}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -395,6 +425,8 @@ const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClic
                 >
                     {loading && posts.length === 0 ? (
                         <div className="pb-20">
+                            <FeedSkeleton />
+                            <FeedSkeleton />
                             <FeedSkeleton />
                             <FeedSkeleton />
                             <FeedSkeleton />
@@ -415,15 +447,17 @@ const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClic
                                 ))}
                             </div>
 
-                            {/* Loading More Indicator */}
+                            {/* Loading More Indicator - Instagram Style */}
                             {loadingMore && (
-                                <div className="flex justify-center py-4">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
+                                <div className="pb-20">
+                                    <FeedSkeleton />
+                                    <FeedSkeleton />
+                                    <FeedSkeleton />
                                 </div>
                             )}
 
                             {/* End of Feed Indicator */}
-                            {!hasMore && posts.length > 5 && (
+                            {!hasMore && !loadingMore && posts.length > 5 && (
                                 <div className="flex justify-center py-8 pb-20">
                                     <p className="text-sm text-secondary-text dark:text-dark-secondary-text">
                                         You're all caught up! 🎉
