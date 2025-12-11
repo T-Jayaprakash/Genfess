@@ -14,6 +14,7 @@ import OnboardingView from './views/OnboardingView';
 import SignUpView from './views/SignUpView';
 import { ToastProvider } from './components/Toast'; // Import Provider
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { checkVersion, shouldCheckVersion, markVersionChecked, getCurrentVersion } from './services/versionService';
 
 // Lazy Load heavy components to improve initial rendering speed
 const CommentView = lazy(() => import('./views/CommentView'));
@@ -22,6 +23,7 @@ const PostOptionsModal = lazy(() => import('./components/PostOptionsModal'));
 const EditPostModal = lazy(() => import('./components/EditPostModal'));
 const ImageViewer = lazy(() => import('./components/ImageViewer'));
 const NotificationsView = lazy(() => import('./views/NotificationsView'));
+const UpdateModal = lazy(() => import('./components/UpdateModal'));
 
 
 
@@ -38,7 +40,7 @@ const SplashScreen = ({ isFinished }: { isFinished: boolean }) => {
 
                 <div className="relative z-10 flex flex-col items-center">
                     <h1 className="text-7xl text-primary-text dark:text-dark-primary-text font-logo animate-text-blur-reveal tracking-wide drop-shadow-xl">
-                        Lastbench
+                        Genfess
                     </h1>
                     <p className="mt-6 text-lg text-secondary-text dark:text-dark-secondary-text animate-fade-in" style={{ animationDelay: '0.2s' }}>
                         {t.splashTagline}
@@ -69,6 +71,8 @@ const AppContent: React.FC = () => {
     const historyStackRef = useRef<Array<{ view: View; hasModal: boolean }>>([{ view: 'home', hasModal: false }]);
     const [editingPost, setEditingPost] = useState<Post | null>(null);
     const [updatedPost, setUpdatedPost] = useState<Post | null>(null);
+    const [showUpdateModal, setShowUpdateModal] = useState(false);
+    const [updateInfo, setUpdateInfo] = useState<any>(null);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme') as Theme | null;
@@ -98,6 +102,20 @@ const AppContent: React.FC = () => {
             try {
                 const currentUser = await userService.getCurrentUser();
                 setUser(currentUser);
+
+                // Check for app updates after successful auth
+                if (shouldCheckVersion()) {
+                    const versionCheck = await checkVersion();
+                    console.log('Version check result:', versionCheck);
+                    console.log('Current app version:', getCurrentVersion());
+
+                    if (versionCheck.needsUpdate || versionCheck.forceUpdate) {
+                        setUpdateInfo(versionCheck.versionInfo);
+                        setShowUpdateModal(true);
+                    }
+
+                    markVersionChecked();
+                }
             } catch (e) {
                 console.error("Auth check failed", e);
                 setUser(null);
@@ -450,6 +468,15 @@ const AppContent: React.FC = () => {
                         images={viewingImages}
                         initialIndex={viewingImageIndex}
                         onClose={handleCloseImages}
+                    />
+                )}
+                {showUpdateModal && updateInfo && (
+                    <UpdateModal
+                        version={updateInfo.latestVersion}
+                        message={updateInfo.message}
+                        updateUrl={updateInfo.updateUrl}
+                        forceUpdate={updateInfo.forceUpdate}
+                        onClose={updateInfo.forceUpdate ? undefined : () => setShowUpdateModal(false)}
                     />
                 )}
             </Suspense>

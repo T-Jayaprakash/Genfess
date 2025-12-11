@@ -62,11 +62,16 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
         return () => observer.disconnect();
     }, [index, isVisible]);
 
-    // Update isLiked when post prop changes (e.g., after refresh)
+    // Only sync isLiked on initial mount, not on every prop change
+    // This prevents the state from resetting when posts are refreshed
     useEffect(() => {
-        setIsLiked(post.isLiked || false);
-        setLikesCount(post.likesCount);
-    }, [post.isLiked, post.likesCount]);
+        // Only update if the post ID changed (different post)
+        const postId = post.id;
+        return () => {
+            // Cleanup if needed
+        };
+    }, [post.id]);
+
 
     const postImages = (post.images && post.images.length > 0)
         ? post.images

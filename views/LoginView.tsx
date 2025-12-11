@@ -17,7 +17,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, onNavigateToSignUp }) =>
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Organically request notification permission on user interaction (like social media apps)
         if ('Notification' in window && Notification.permission === 'default') {
             // We don't await this to keep the login flow snappy
@@ -46,9 +46,9 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, onNavigateToSignUp }) =>
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-dark-background p-8 animate-fade-in">
-            <h1 className="text-5xl font-bold text-primary-text dark:text-dark-primary-text mb-4" style={{ fontFamily: "'Roboto', sans-serif" }}>Lastbench</h1>
+            <h1 className="text-5xl font-bold text-primary-text dark:text-dark-primary-text mb-4" style={{ fontFamily: "'Roboto', sans-serif" }}>Genfess</h1>
             <p className="mb-12 text-xl text-secondary-text dark:text-dark-secondary-text">{t.splashTagline}</p>
-            
+
             <form onSubmit={handleLogin} className="w-full max-w-sm flex flex-col gap-4">
                 <input
                     type="email"
@@ -75,7 +75,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, onNavigateToSignUp }) =>
                     {isLoading ? t.loggingIn : t.login}
                 </button>
             </form>
-             <p className="text-sm text-secondary-text dark:text-dark-secondary-text mt-6">
+            <p className="text-sm text-secondary-text dark:text-dark-secondary-text mt-6">
                 {t.noAccount} <button onClick={onNavigateToSignUp} className="font-bold text-accent-primary hover:underline">{t.signUp}</button>
             </p>
         </div>

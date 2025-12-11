@@ -48,7 +48,7 @@ const Header: React.FC<HeaderProps> = ({ isVisible = true, user, onNotificationC
 
             {/* Centered logo */}
             <h1 className="absolute left-1/2 transform -translate-x-1/2 text-3xl text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 select-none" style={{ fontFamily: "'Satisfy', cursive", letterSpacing: '0.5px' }}>
-                Lastbench
+                Genfess
             </h1>
 
             {/* Right side - Notification Bell */}

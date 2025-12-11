@@ -5,6 +5,7 @@ import { t } from '../constants/locales';
 import { COLLEGES, DEPARTMENTS, AVATAR_COLORS } from '../constants/config';
 import { ArrowPathIcon } from '../components/Icons';
 import * as userService from '../services/userService';
+import * as emailVerificationService from '../services/emailVerificationService';
 
 interface OnboardingViewProps {
     user: User;
@@ -21,6 +22,28 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
     const [isSaving, setIsSaving] = useState(false);
     const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
     const [availableColleges, setAvailableColleges] = useState<string[]>(COLLEGES);
+
+    // Auto-detect college from user's email
+    useEffect(() => {
+        // Try to get user email from Supabase auth
+        const getUserEmail = async () => {
+            try {
+                const { supabase } = await import('../services/supabaseClient');
+                const { data: { user: authUser } } = await supabase.auth.getUser();
+                if (authUser?.email) {
+                    const detectedCollege = emailVerificationService.getCollegeFromEmail(authUser.email);
+                    if (detectedCollege) {
+                        // Auto-fill college
+                        setCollege(detectedCollege);
+                        console.log(`✅ Auto-detected college from email: ${detectedCollege}`);
+                    }
+                }
+            } catch (e) {
+                console.error('Could not auto-detect college:', e);
+            }
+        };
+        getUserEmail();
+    }, []);
 
     // Load existing colleges from DB to populate the list dynamically
     useEffect(() => {

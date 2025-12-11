@@ -4,6 +4,7 @@ A real-time social platform for college students to share anonymous posts, comme
 
 ## 🚀 Features
 
+- ✅ **College Email Verification** - Only verified students can join (like UNIDAYS)
 - ✅ **Anonymous Posting** - Share thoughts without revealing identity
 - ✅ **Real-time Updates** - Posts and comments update instantly via Supabase Realtime
 - ✅ **Instagram-style Notifications** - Bell icon with live notifications for likes, comments, and replies
@@ -197,9 +198,10 @@ This is a student project. Feel free to fork and adapt for your own college!
 ## 📧 Support
 
 For issues or questions, check:
-1. `supabase-realtime-README.md` - Realtime setup guide
-2. Browser/mobile console for errors  
-3. Supabase logs in dashboard
+1. `docs/COLLEGE_EMAIL_VERIFICATION.md` - Email verification setup and troubleshooting
+2. `supabase-realtime-README.md` - Realtime setup guide
+3. Browser/mobile console for errors  
+4. Supabase logs in dashboard
 
 ---
 
